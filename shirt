@@ -1,34 +1,42 @@
 #!/usr/bin/env ruby
 require 'shellwords'
 require 'rubygems'
+require 'colored'
 require 'pry'
 
 class Shirt
 
   BUILTINS = {
-    'cd'     => lambda { |dir| Dir.chdir(dir) },
+    'cd'     => lambda { |dir  = ENV["HOME"]| Dir.chdir(dir) },
     'exit'   => lambda { |code = 0| exit(code.to_i) },
     'exec'   => lambda { |*command| exec *command },
     'reload' => lambda {  exec './shirt'}
   }
 
+  def self.d_dir
+    return Dir.pwd.gsub(ENV["HOME"],"~").green
+  end
 
   loop do
-    $stdout.print "pid:#{$$} ~> " 
+    $stdout.print "[".white+"#{$$}".magenta+"]".white+"[#{d_dir()}]: ".white
     line = $stdin.gets.strip
     command, *arguments = Shellwords.shellsplit(line)
 
-    redo if line.empty? #If no input abandon request and start over
+    redo if line.empty? 
 
     if BUILTINS[command]
       begin
         BUILTINS[command].call(*arguments)
       rescue StandardError => e
-        $stderr.puts e
+        $stderr.puts e.to_s.red
       end
     else
       pid = fork {
-        exec line
+        begin
+          exec line
+        rescue StandardError => e
+          $stderr.puts e.to_s.red
+        end
       }
 
       Process.wait pid
