@@ -1,25 +1,37 @@
 #!/usr/bin/env ruby
 require 'shellwords'
+require 'rubygems'
+require 'pry'
 
-BUILTINS = {
-  'cd' => lambda { |dir| Dir.chdir(dir) },
-  'exit' => lambda { |code = 0| exit(code.to_i) },
-  'exec' => lambda { |*command| exec *command }
-}
+class Shirt
 
-loop do
-  $stdout.print '-> '
-  line = $stdin.gets.strip
-  command, *arguments = Shellwords.shellsplit(line)
+  BUILTINS = {
+    'cd'     => lambda { |dir| Dir.chdir(dir) },
+    'exit'   => lambda { |code = 0| exit(code.to_i) },
+    'exec'   => lambda { |*command| exec *command },
+    'reload' => lambda {  exec './shirt'}
+  }
 
-  if BUILTINS[command]
-    BUILTINS[command].call(*arguments)
-  else
-    pid = fork {
-      exec line
-    }
 
-    Process.wait pid
+  loop do
+    $stdout.print "pid:#{$$} ~> " 
+    line = $stdin.gets.strip
+    command, *arguments = Shellwords.shellsplit(line)
+
+    redo if line.empty? #If no input abandon request and start over
+
+    if BUILTINS[command]
+      begin
+        BUILTINS[command].call(*arguments)
+      rescue StandardError => e
+        $stderr.puts e
+      end
+    else
+      pid = fork {
+        exec line
+      }
+
+      Process.wait pid
+    end
   end
 end
-
