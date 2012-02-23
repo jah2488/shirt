@@ -1,10 +1,15 @@
 #!/usr/bin/env ruby
 require 'shellwords'
+require 'readline'
 require 'rubygems'
 require 'colored'
 require 'pry'
 
+
 class Shirt
+
+  #Store terminal state
+  stty_save = `stty -g`.chomp
 
   BUILTINS = {
     'cd'     => lambda { |dir  = ENV["HOME"]| Dir.chdir(dir) },
@@ -17,29 +22,31 @@ class Shirt
     return Dir.pwd.gsub(ENV["HOME"],"~").green
   end
 
-  loop do
-    $stdout.print "[".white+"#{$$}".magenta+"]".white+"[#{d_dir()}]: ".white
-    line = $stdin.gets.strip
-    command, *arguments = Shellwords.shellsplit(line)
+  begin
+    while line = Readline.readline("[".white+"#{$$}".magenta+"]".white+"[#{d_dir()}]: ".white, true)
+      command, *arguments = Shellwords.shellsplit(line)
 
-    redo if line.empty? 
+      redo if line.empty? 
 
-    if BUILTINS[command]
-      begin
-        BUILTINS[command].call(*arguments)
-      rescue StandardError => e
-        $stderr.puts e.to_s.red
-      end
-    else
-      pid = fork {
+      if BUILTINS[command]
         begin
-          exec line
+          BUILTINS[command].call(*arguments)
         rescue StandardError => e
           $stderr.puts e.to_s.red
         end
-      }
+      else
+        pid = fork {
+          begin
+            exec line
+          rescue StandardError => e
+            $stderr.puts e.to_s.red
+          end
+        }
 
-      Process.wait pid
+        Process.wait pid
+      end
     end
+  rescue Interrupt => e
+    system("stty", stty_save)
   end
 end
