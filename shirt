@@ -15,8 +15,17 @@ class Shirt
     'cd'     => lambda { |dir  = ENV["HOME"]| Dir.chdir(dir) },
     'exit'   => lambda { |code = 0| exit(code.to_i) },
     'exec'   => lambda { |*command| exec *command },
-    'reload' => lambda {  exec './shirt'}
+    'reload' => lambda {  exec './shirt'},
+    'set'    => lambda { |args| key, value = args.split('='); ENV[key] = value }
   }
+
+  def eval_command(text)
+    case text
+    when '~' then Dir.chdir(ENV["HOME"])
+    when /`.{0,}`/
+      exec text.gsub("`","")
+    end
+  end
 
   def self.d_dir
     return Dir.pwd.gsub(ENV["HOME"],"~").green
