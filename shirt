@@ -8,8 +8,6 @@ require 'pry'
 
 class Shirt
 
-  #Store terminal state
-  stty_save = `stty -g`.chomp
 
   BUILTINS = {
     'cd'     => lambda { |dir  = ENV["HOME"]| Dir.chdir(dir) },
@@ -31,31 +29,32 @@ class Shirt
     return Dir.pwd.gsub(ENV["HOME"],"~").green
   end
 
-  begin
-    while line = Readline.readline("[".white+"#{$$}".magenta+"]".white+"[#{d_dir()}]: ".white, true)
-      command, *arguments = Shellwords.shellsplit(line)
+  #$PROGRAM_NAME = "shirt"
+  #ENV['PROMPT'] = ':'
 
-      redo if line.empty? 
+  while line = Readline.readline("[".white+"#{$PROGRAM_NAME}".magenta+"]".white+"[#{d_dir()}]#{ENV['PROMPT']} ".white, true)
+    command, *arguments = Shellwords.shellsplit(line)
 
+    redo if line.empty? 
+
+    begin
       if BUILTINS[command]
-        begin
           BUILTINS[command].call(*arguments)
-        rescue StandardError => e
-          $stderr.puts e.to_s.red
-        end
       else
         pid = fork {
-          begin
-            exec line
-          rescue StandardError => e
-            $stderr.puts e.to_s.red
-          end
+          exec line
         }
 
         Process.wait pid
       end
+    rescue StandardError => e
+      $stderr.puts e.to_s.red
     end
-  rescue Interrupt => e
-    system("stty", stty_save)
   end
+
+  old_handler = trap(:int) do
+    puts "Goodbye"
+    old_handler.call if old_handler.respond_to?(:call)
+  end
+
 end
